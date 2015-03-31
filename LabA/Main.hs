@@ -3,7 +3,8 @@ import Control.Parallel
 import Criterion.Main
 import System.Random
 
-
+-- Bästa -A är 1700M -A1700M
+--
 main = defaultMain
   [
   bench "pscan2" (nf (pscan2 op) rndInts),
