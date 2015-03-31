@@ -1,37 +1,59 @@
 import Prelude hiding (scanl, scanl1)
 import Control.Parallel
+import Control.Parallel.Strategies
 import Criterion.Main
 import System.Random
+import Control.DeepSeq
 
--- Bästa -A är 1700M -A1700M
---
-main = defaultMain
-  [
-  bench "pscan2" (nf (pscan2 op) rndInts),
-  bench "scanl1" (nf (scanl1 op) rndInts)
-  ]
+--main = defaultMain
+--  [
+--  bench "pscanEval" (nf (pscanEval op) rndInts),
+--  bench "scanl1" (nf (scanl1 op) rndInts)
+--  ]
 
 op :: Integer -> Integer -> Integer
-op x y = floor $ (((fromIntegral x)^10^10)+(fromIntegral y))**((1.0/10.0))
+op x y = force $ sum [1..1000]
 
---main :: IO ()
---main = putStrLn $ show $ last $ pscan2 (op) rndInts
+main :: IO ()
+main = do
+--  putStrLn $ show $ last $ pscanEval 15 (+) rndInts
+--  putStrLn $ show $ last $ pscanEval (+) rndInts 
+  putStrLn $ show $ last $ scanl1 (+) rndInts  
 
-rndInts = take 100000 (randoms (mkStdGen 211570155)) :: [Integer]
+rndInts = take 500000 (randoms (mkStdGen 211570155)) :: [Integer]
+
+pscanEval :: Int -> (a -> a -> a) -> [a] -> [a]
+pscanEval d _ []     = []
+pscanEval d f q@(x:xs) = pscanEval1 d f x xs
+
+pscanEval1 0 f q ls = scanl f q ls
+pscanEval1 d f q ls
+  | length ls > 2 = runEval $ do
+                        a <- rpar part2
+                        b <- rseq part1
+                        return $ pmerge f b a
+  | otherwise = scanl f q ls -- To prevent tail of empty list
+  where
+    part1 = pscanEval1 (d-1) f q (left ls)
+    part2 = pscanEval1 (d-1) f ((head . right) ls) ((tail . right) ls)
+
+
+pscanParSeq :: Int -> (a -> a -> a) -> [a] -> [a]
+pscanParSeq d _ []     = []
+pscanParSeq d f q@(x:xs) = pscanParSeq1 d f x xs
 
 --pscan :: (b -> a -> b) -> b -> [a] -> [b]
-pscan f q ls 
-  | length ls > 499 = par part2 (pseq part1 (merge f part1 part2))
-  | otherwise      = q : (case ls of
-                       [] -> []
-                       x:xs -> pscan f (f q x) xs) 
+pscanParSeq1 0 f q ls = scanl f q ls
+pscanParSeq1 d f q ls 
+  | length ls > 2 = par part2 (pseq part1 (pmerge f part1 part2))
+  | otherwise     = scanl f q ls -- To prevent tail of empty list
   where
-    part1 = pscan f q (left ls)
-    part2 = pscan f ((head . right) ls) ((tail . right) ls)
+    part1 = pscanParSeq1 (d-1) f q (left ls)
+    part2 = pscanParSeq1 (d-1) f ((head . right) ls) ((tail . right) ls)
 
-pscan2 :: (a -> a -> a) -> [a] -> [a]
-pscan2 _ []     = []
-pscan2 f q@(x:xs) = pscan f x xs
+pmerge f lft rgt = par mm (pseq lft (lft ++ mm))
+  where
+    mm = map (`f` (last lft)) rgt
 
 merge f lft rgt = lft ++ (map (`f` (last lft)) rgt)
 
