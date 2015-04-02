@@ -7,6 +7,7 @@ import Criterion.Main
 import Control.Parallel
 import Control.Monad.Par  
 import Control.Parallel.Strategies
+import Control.DeepSeq
 
 -- file given.hs for use with Lab 1 Part 1 of the Chalmers PFP Course
 -- Please write your names in the file if submitting it
@@ -16,16 +17,18 @@ main = do -- Använd 10000 i sample
   x <- sampleBench
   defaultMain
     [
-    bench "pfft" (nf (pfft 7) x),
-    bench "fft" (nf (fft) x)
+    bench "pfft" (nf (pfft 5) x),
+    bench "sfft" (nf (sfft) x),
+    bench "parfft" (nf (parfft 30) x)
     ]
 -}
 
 main = do -- Best A800M or A1200M with -O2
   x <- sample
---  putStrLn $ show $ last $ pfft 20 x -- ParSeq FFT
-  putStrLn $ show $ last $ parfft 30 x -- Par Monad FFT
---  putStrLn $ show $ last $ fft x -- Sequential FFT
+--  (fft x `using` parList rpar) `deepseq` return ()
+  (pfft 5 x) `deepseq` return () -- ParSeq FFT
+--  (parfft 30 x) `deepseq` return () -- Par Monad FFT
+--  (fft x) `deepseq` return () -- Sequential FFT
 
 sampleBench = generate2DSamplesList 10000 4 5 1.4 1.5
 sample = generate2DSamplesList 200000 4 5 1.4 1.5
@@ -49,8 +52,6 @@ generate2DSamplesList n mx my sdx sdy = do
   return $ zipWith (:+) (take n xsamples) ysamples
 
 
-
-
 -- Task 1
 
 -- -A10M bäst. A35 funkar
@@ -61,9 +62,10 @@ pfft 0 as = fft as
 pfft d as = par rs (pseq ls (interleave ls rs))
   where
     (cs,ds) = bflyS as
-    ls = pfft (d-1) cs
-    rs = pfft (d-1) ds
+    ls = force $ pfft (d-1) cs
+    rs = force $ pfft (d-1) ds
 
+sfft as = fft as `using` parList rpar
 
 -- pbflyS NOT CURRENTLY IN USE
 pbflyS :: [Complex Float] -> ([Complex Float], [Complex Float])

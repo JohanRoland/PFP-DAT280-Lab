@@ -12,25 +12,33 @@ import Control.DeepSeq
 --  ]
 
 op :: Integer -> Integer -> Integer
-op x y = force $ sum [1..1000]
+op x y = (fibo 20 x) `deepseq` (x+y)
 
-main :: IO ()
-main = do
---  putStrLn $ show $ last $ pscanEval 15 (+) rndInts
+fibo :: Integer -> Integer -> Integer
+fibo 0 = \x -> 1
+fibo 1 = \x -> 1
+fibo n = \x -> fibo (n-2) x + fibo (n-1) x
+
+--main :: IO ()
+main = do 
+--  (stratEval (op) rndInts) `deepseq` return ()
+--  (pscanEval 15 (op) rndInts) `deepseq` return ()
 --  putStrLn $ show $ last $ pscanEval (+) rndInts 
-  putStrLn $ show $ last $ scanl1 (+) rndInts  
+  (scanl1 (op) rndInts) `deepseq` return ()  
 
-rndInts = take 500000 (randoms (mkStdGen 211570155)) :: [Integer]
+rndInts = take 1200 (randoms (mkStdGen 211570155)) :: [Integer]
 
-pscanEval :: Int -> (a -> a -> a) -> [a] -> [a]
+stratEval f xs = scanl1 f xs `using` parListChunk 10 rseq
+
+--pscanEval :: Int -> (a -> a -> a) -> [a] -> [a]
 pscanEval d _ []     = []
-pscanEval d f q@(x:xs) = pscanEval1 d f x xs
+pscanEval d f (x:xs) = pscanEval1 d f x xs
 
 pscanEval1 0 f q ls = scanl f q ls
 pscanEval1 d f q ls
   | length ls > 2 = runEval $ do
                         a <- rpar part2
-                        b <- rseq part1
+                        b <- rpar part1
                         return $ pmerge f b a
   | otherwise = scanl f q ls -- To prevent tail of empty list
   where
@@ -45,16 +53,15 @@ pscanParSeq d f q@(x:xs) = pscanParSeq1 d f x xs
 --pscan :: (b -> a -> b) -> b -> [a] -> [b]
 pscanParSeq1 0 f q ls = scanl f q ls
 pscanParSeq1 d f q ls 
-  | length ls > 2 = par part2 (pseq part1 (pmerge f part1 part2))
+  | length ls > 2 = par part2 (pseq part1 (merge f part1 part2))
   | otherwise     = scanl f q ls -- To prevent tail of empty list
   where
     part1 = pscanParSeq1 (d-1) f q (left ls)
     part2 = pscanParSeq1 (d-1) f ((head . right) ls) ((tail . right) ls)
 
-pmerge f lft rgt = par mm (pseq lft (lft ++ mm))
+pmerge f lft rgt = lft ++ mm
   where
-    mm = map (`f` (last lft)) rgt
-
+    mm = parMap rdeepseq (`f` (last lft)) rgt 
 merge f lft rgt = lft ++ (map (`f` (last lft)) rgt)
 
 left :: [a] -> [a]
