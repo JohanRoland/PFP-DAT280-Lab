@@ -16,6 +16,7 @@ fib 1 _ = 1
 fib n x = (fib n-1 x) + (fib n-2 x)
 
 op :: Integer -> Integer -> Integer
+<<<<<<< HEAD
 op x y =  deepseq (fib 10 x) (x+y)
 
 main :: IO ()
@@ -27,15 +28,41 @@ main = do
 rndInts = take 50000 (randoms (mkStdGen 211570155)) :: [Integer]
 
 pscanEval :: NFData a => Int -> (a -> a -> a) -> [a] -> [a]
+=======
+op x y = (fibo 20 x) `deepseq` (x+y)
+
+fibo :: Integer -> Integer -> Integer
+fibo 0 = \x -> 1
+fibo 1 = \x -> 1
+fibo n = \x -> fibo (n-2) x + fibo (n-1) x
+
+--main :: IO ()
+main = do 
+--  (stratEval (op) rndInts) `deepseq` return ()
+--  (pscanEval 15 (op) rndInts) `deepseq` return ()
+--  putStrLn $ show $ last $ pscanEval (+) rndInts 
+  (scanl1 (op) rndInts) `deepseq` return ()  
+
+rndInts = take 1200 (randoms (mkStdGen 211570155)) :: [Integer]
+
+stratEval f xs = scanl1 f xs `using` parListChunk 10 rseq
+
+--pscanEval :: Int -> (a -> a -> a) -> [a] -> [a]
+>>>>>>> origin/master
 pscanEval d _ []     = []
-pscanEval d f q@(x:xs) = pscanEval1 d f x xs
+pscanEval d f (x:xs) = pscanEval1 d f x xs
 
 pscanEval1 0 f q ls = force $   scanl f q ls
 pscanEval1 d f q ls
   | length ls > 2 = runEval $ do
                         a <- rpar part2
+<<<<<<< HEAD
                         b <- rpar part1                        
                         return $  pmerge f b a
+=======
+                        b <- rpar part1
+                        return $ pmerge f b a
+>>>>>>> origin/master
   | otherwise = scanl f q ls -- To prevent tail of empty list
   where
     part1 = force $  pscanEval1 (d-1) f q (left ls)
@@ -49,7 +76,7 @@ pscanParSeq d f q@(x:xs) = pscanParSeq1 d f x xs
 --pscan :: (b -> a -> b) -> b -> [a] -> [b]
 pscanParSeq1 0 f q ls = scanl f q ls
 pscanParSeq1 d f q ls 
-  | length ls > 2 = par part2 (pseq part1 (pmerge f part1 part2))
+  | length ls > 2 = par part2 (pseq part1 (merge f part1 part2))
   | otherwise     = scanl f q ls -- To prevent tail of empty list
   where
     part1 = pscanParSeq1 (d-1) f q (left ls)
@@ -57,7 +84,11 @@ pscanParSeq1 d f q ls
 
 pmerge f lft rgt = lft ++ mm
   where
+<<<<<<< HEAD
     mm = map (`f` (last lft)) rgt `using` parListChunk 100 rdeepseq
+=======
+    mm = parMap rdeepseq (`f` (last lft)) rgt 
+>>>>>>> origin/master
 merge f lft rgt = lft ++ (map (`f` (last lft)) rgt)
 
 left :: [a] -> [a]
