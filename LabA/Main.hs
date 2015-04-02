@@ -10,38 +10,42 @@ import Control.DeepSeq
 --  bench "pscanEval" (nf (pscanEval op) rndInts),
 --  bench "scanl1" (nf (scanl1 op) rndInts)
 --  ]
+fib :: Integer -> Integer -> Integer
+fib 0 _ = 0
+fib 1 _ = 1
+fib n x = (fib n-1 x) + (fib n-2 x)
 
 op :: Integer -> Integer -> Integer
-op x y = force $ sum [1..1000]
+op x y =  deepseq (fib 10 x) (x+y)
 
 main :: IO ()
 main = do
---  putStrLn $ show $ last $ pscanEval 15 (+) rndInts
---  putStrLn $ show $ last $ pscanEval (+) rndInts 
-  putStrLn $ show $ last $ scanl1 (+) rndInts  
+  deepseq  (pscanEval 10 (op) rndInts) return ()
+  --putStrLn $ show $ last $ pscanEval (+) rndInts 
+  --deepseq (scanl1 (+) rndInts) return ()  
+   
+rndInts = take 50000 (randoms (mkStdGen 211570155)) :: [Integer]
 
-rndInts = take 500000 (randoms (mkStdGen 211570155)) :: [Integer]
-
-pscanEval :: Int -> (a -> a -> a) -> [a] -> [a]
+pscanEval :: NFData a => Int -> (a -> a -> a) -> [a] -> [a]
 pscanEval d _ []     = []
 pscanEval d f q@(x:xs) = pscanEval1 d f x xs
 
-pscanEval1 0 f q ls = scanl f q ls
+pscanEval1 0 f q ls = force $   scanl f q ls
 pscanEval1 d f q ls
   | length ls > 2 = runEval $ do
                         a <- rpar part2
-                        b <- rseq part1
-                        return $ pmerge f b a
+                        b <- rpar part1                        
+                        return $  pmerge f b a
   | otherwise = scanl f q ls -- To prevent tail of empty list
   where
-    part1 = pscanEval1 (d-1) f q (left ls)
-    part2 = pscanEval1 (d-1) f ((head . right) ls) ((tail . right) ls)
+    part1 = force $  pscanEval1 (d-1) f q (left ls)
+    part2 = force $  pscanEval1 (d-1) f ((head . right) ls) ((tail . right) ls)
 
-
+{-
 pscanParSeq :: Int -> (a -> a -> a) -> [a] -> [a]
 pscanParSeq d _ []     = []
 pscanParSeq d f q@(x:xs) = pscanParSeq1 d f x xs
-
+-}
 --pscan :: (b -> a -> b) -> b -> [a] -> [b]
 pscanParSeq1 0 f q ls = scanl f q ls
 pscanParSeq1 d f q ls 
@@ -51,10 +55,9 @@ pscanParSeq1 d f q ls
     part1 = pscanParSeq1 (d-1) f q (left ls)
     part2 = pscanParSeq1 (d-1) f ((head . right) ls) ((tail . right) ls)
 
-pmerge f lft rgt = par mm (pseq lft (lft ++ mm))
+pmerge f lft rgt = lft ++ mm
   where
-    mm = map (`f` (last lft)) rgt
-
+    mm = map (`f` (last lft)) rgt `using` parListChunk 100 rdeepseq
 merge f lft rgt = lft ++ (map (`f` (last lft)) rgt)
 
 left :: [a] -> [a]
