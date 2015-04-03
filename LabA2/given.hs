@@ -12,21 +12,20 @@ import Control.DeepSeq
 -- file given.hs for use with Lab 1 Part 1 of the Chalmers PFP Course
 -- Please write your names in the file if submitting it
 
-{-
-main = do -- Använd 10000 i sample
+
+main = do 
   x <- sampleBench
   defaultMain
     [
-    bench "pfft" (nf (pfft 5) x),
-    bench "sfft" (nf (sfft) x),
+    bench "parSeqfft" (nf (parSeqfft 10) x),
     bench "parfft" (nf (parfft 30) x)
     ]
--}
 
-main = do -- Best A800M or A1200M with -O2
-  x <- sample
+
+--main = do -- Best A800M or A1200M with -O2
+--  x <- sample
 --  (fft x `using` parList rpar) `deepseq` return ()
-  (pfft 5 x) `deepseq` return () -- ParSeq FFT
+--  (parSeqfft 10 x) `deepseq` return () -- ParSeq FFT
 --  (parfft 30 x) `deepseq` return () -- Par Monad FFT
 --  (fft x) `deepseq` return () -- Sequential FFT
 
@@ -54,42 +53,19 @@ generate2DSamplesList n mx my sdx sdy = do
 
 -- Task 1
 
--- -A10M bäst. A35 funkar
-
-pfft :: Int -> [Complex Float] -> [Complex Float]
-pfft d [a] = [a]
-pfft 0 as = fft as
-pfft d as = par rs (pseq ls (interleave ls rs))
+-- | Implementation using par and pseq
+parSeqfft :: Int -> [Complex Float] -> [Complex Float]
+parSeqfft d [a] = [a]
+parSeqfft 0 as = fft as
+parSeqfft d as = par rs (pseq ls (interleave ls rs))
   where
     (cs,ds) = bflyS as
-    ls = force $ pfft (d-1) cs
-    rs = force $ pfft (d-1) ds
-
-sfft as = fft as `using` parList rpar
-
--- pbflyS NOT CURRENTLY IN USE
-pbflyS :: [Complex Float] -> ([Complex Float], [Complex Float])
-pbflyS as = par los (pseq rts (los,rts))
-  where
-    (ls,rs) = halve as
-    los = zipWith (+) ls rs
-    ros = zipWith (-) ls rs
-    rts = zipWith (*) ros [tw (length as) i | i <- [0..(length ros) - 1]]
-
-{-
-divConq :: (prob -> Bool)              -- is the problem indivisible?
-            -> (prob -> [prob])        -- split
-            -> ([sol] -> sol)          -- join
-            -> (prob -> sol)           -- solve a sub-problem
-            -> (prob -> sol)
-
-divConq indiv split join f prob = undefined
--}
-
+    ls = force $ parSeqfft (d-1) cs
+    rs = force $ parSeqfft (d-1) ds
 
 -- Task 2
 
--- Using par monad
+-- | Implementation using the par monad
 parfft :: Int -> [Complex Float] -> [Complex Float]
 parfft d as = runPar $ parfft' d as
 
@@ -145,5 +121,4 @@ bflyS as = (los,rts)
 halve as = splitAt n' as
   where
     n' = div (length as + 1) 2
-
 
