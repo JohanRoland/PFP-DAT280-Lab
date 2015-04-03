@@ -6,21 +6,21 @@ import System.Random
 import Control.DeepSeq
 
 -- | Main method using criterion benchmarking
-{-
+
 main = defaultMain
   [
-  bench "pscanStrat" (nf (pscanStrat op) rndInts),
-  bench "pscanEval" (nf (pscanEval 15 op) rndInts),
-  bench "pscanParSeq" (nf (pscanParSeq 15 op) rndInts),
-  bench "scanl1" (nf (scanl1 op) rndInts)
+  bench "pscanStrat" (nf (pscanStrat op) rndInts)
+  , bench "pscanEval" (nf (pscanEval 2 op) rndInts)
+  , bench "pscanParSeq" (nf (pscanParSeq 2 op) rndInts)
+--  , bench "scanl1" (nf (scanl1 op) rndInts)
   ]
--}
 
-main :: IO ()
-main = do 
-  (pscanStrat (op) rndInts) `deepseq` return ()
---  (pscanEval 15 (op) rndInts) `deepseq` return ()
---  (pscanParSeq 15 (op) rndInts) `deepseq` return () 
+
+--main :: IO ()
+--main = do 
+--  (pscanStrat (op) rndInts) `deepseq` return ()
+--  (pscanEval 2 (op) rndInts) `deepseq` return ()
+--  (pscanParSeq 2 (op) rndInts) `deepseq` return () 
 --  (scanl1 (op) rndInts) `deepseq` return ()  
 
 -- | Creates a list containing random integers
@@ -58,6 +58,15 @@ pscanEval1 d f q ls
   where
     part1 = pscanEval1 (d-1) f q (left ls)
     part2 = pscanEval1 (d-1) f ((head . right) ls) ((tail . right) ls)
+    pmerge f lft rgt = lft ++ runEval (pEvalMap (`f` (last lft)) rgt)
+
+-- | Parallel map for Eval monad
+pEvalMap :: (a -> b) -> [a] -> Eval [b]
+pEvalMap f [] = return []
+pEvalMap f (x:xs) = do
+  y  <- rpar (f x)
+  ys <- pEvalMap f xs
+  return (y:ys)
 
 ------------------------------------------------------------------------------
 
@@ -73,13 +82,16 @@ pscanParSeq1 d f q ls
   where
     part1 = pscanParSeq1 (d-1) f q (left ls)
     part2 = pscanParSeq1 (d-1) f ((head . right) ls) ((tail . right) ls)
+    pmerge f lft rgt = lft ++ (parSeqMap (`f` (last lft)) rgt)
+
+-- | Parallel map using par and pseq
+parSeqMap :: (a -> b) -> [a] -> [b]
+parSeqMap f [] = []
+parSeqMap f (x:xs) = par fun (pseq (parSeqMap f xs) (fun : parSeqMap f xs))
+  where
+    fun = f x
 
 ------------------------------------------------------------------------------
-
--- | Parallel merge, using parMap
-pmerge f lft rgt = lft ++ mm
-  where
-    mm = parMap rdeepseq (`f` (last lft)) rgt 
 
 -- | Return left half of a list
 left :: [a] -> [a]
