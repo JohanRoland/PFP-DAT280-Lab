@@ -24,7 +24,7 @@ main = do
 --  (scanl1 (op) rndInts) `deepseq` return ()  
 
 -- | Creates a list containing random integers
-rndInts = take 1200 (randoms (mkStdGen 211570155)) :: [Integer]
+rndInts = take 5000 (randoms (mkStdGen 211570155)) :: [Integer]
 
 -- | Operator for the scans
 op :: Integer -> Integer -> Integer
@@ -32,9 +32,9 @@ op x y = (fibo 20 x) `deepseq` (x+y)
 
 -- | Fibonacci operator, takes an extra argument to avoid Haskell's memoization
 fibo :: Integer -> Integer -> Integer
-fibo 0 _ = 1
-fibo 1 _ = 1
-fibo n x = fibo (n-2) x + fibo (n-1) x
+fibo 0 = \x -> 1
+fibo 1 = \x -> 1
+fibo n = \x -> fibo (n-2) x + fibo (n-1) x
 
 ------------------------------------------------------------------------------
 
