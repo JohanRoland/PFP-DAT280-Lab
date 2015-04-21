@@ -8,12 +8,11 @@ type IntVector = R.Array R.U (R.Z R.:. Int) Integer
 
 stock::[Integer]->Integer
 stock (l:[]) = 0
-stock (l:ls) = (max (stock ls) (calc ls l 0))
+stock (l:ls) = max (stock ls) (calc ls l 0)
     where 
         calc::[Integer]->Integer->Integer->Integer
-        calc (l:[]) x y = max  (x-l)  y  
-        calc (l:ls)   x y = max (x-l) (calc ls x y)
-        
+        calc (l:[]) x y = max (l-x) y  
+        calc (l:ls) x y = max (l-x) (calc ls x y) 
         
         
 pstock::[Int]->IO ()
