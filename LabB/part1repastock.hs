@@ -4,9 +4,9 @@ module Part1 where
 import Data.List
 import qualified Data.Array.Repa as R
 
-type IntVec = R.Array R.U R.DIM1 Int
+type IntVec = R.Array R.U R.DIM1 [Int]
 type Index = Int
-
+{-
 runRepaStock :: Int
 runRepaStock = repastock (R.fromListUnboxed 
                (R.Z R.:. (8::Int)) [0,0,2,9,8,10,1,10] :: IntVec) 0
@@ -30,22 +30,41 @@ stock (l:ls) = max (stock ls) (calc ls l 0)
         calc::[Integer]->Integer->Integer->Integer
         calc (l:[]) x y = max (l-x) y  
         calc (l:ls) x y = max (l-x) (calc ls x y) 
+-}      
         
-        
-pstock::[Int]->IO ()
+--pstock::[Int]->IO ()
 pstock ls = do
     let i = length ls
-    let l  = (tails (ls::[Int])) ::[[Int]]
+    let l = (tails (ls::[Int])) ::[[Int]]
+    let (x,y) = getMaxIndex $ R.toList (R.map runOnTails2 
+                (R.fromListUnboxed (R.Z R.:. (i::Int)) l :: IntVec))
+    let finIn = snd x+y
     --let repLs = R.fromListUnboxed (R.ix1 i) l ::(R.Array R.U R.DIM1 [Int])  
-    return ()
-        
+    putStrLn $ show (y, finIn, fst x)
 
-        
-runOnTails::[Integer]->(Integer,Integer)
-runOnTails (l:ls) = helper l ls 1 0 0
+getMaxIndex xs = last $ sortBy sortGT $ zip xs [0..]
 
-helper::Integer->[Integer]->Integer->Integer->Integer->(Integer,Integer)
-helper f (l:[]) i mi m | l-f > m = (f-l, i)
-                     | otherwise = (m, mi)
+sortGT ((a1,a11), b1) ((a2,a22), b2)
+  | a1 < a2 = LT
+  | a1 > a2 = GT
+  | a1 == a2 = compare2 b1 b2
+
+compare2 b1 b2
+  | b1 > b2 = GT
+  | b1 < b2 = LT
+  | b1 == b2 = EQ
+
+runOnTails2::[Int]->[Int]->(Int,Int)
+runOnTails2 [] prices = (0,0)
+runOnTails2 (l:ls) prices = helper l ls 1 0 0 
+        
+runOnTails::[Int]->(Int,Int)
+runOnTails [] = (0,0)
+runOnTails (l:ls) = helper l ls 1 0 0 
+
+helper::Int->[Int]->Int->Int->Int->(Int,Int)
+helper _ [] _ _ _  = (0,0)
+helper f (l:[]) i mi m | l-f > m = (l-f, i)
+                       | otherwise = (m, mi)
 helper f (l:ls) i mi m | l-f > m = helper f ls (i+1) i (l-f)
                        | otherwise = helper f ls (i+1) mi (m)
