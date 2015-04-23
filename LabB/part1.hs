@@ -15,20 +15,32 @@ stock (l:ls) = max (stock ls) (calc ls l 0)
         calc (l:ls) x y = max (l-x) (calc ls x y) 
         
         
-pstock::[Int]->IO ()
+pstock::R.Array R.U R.DIM1 Int->IO ()
 pstock ls = do
-    let i = length ls
-    let l  = (tails (ls::[Int])) ::[[Int]]
-    --let repLs = R.fromListUnboxed (R.ix1 i) l ::(R.Array R.U R.DIM1 [Int])  
+    
+    
+    
     return ()
         
 
         
-runOnTails::[Integer]->(Integer,Integer)
-runOnTails (l:ls) = helper l ls 1 0 0
+--runOnTails::R.Array R.U R.DIM1 Int->(Integer,Integer)
+--runOnTails  = helper l ls 1 0 0
 
 helper::Integer->[Integer]->Integer->Integer->Integer->(Integer,Integer)
 helper f (l:[]) i mi m | l-f > m = (f-l, i)
                      | otherwise = (m, mi)
 helper f (l:ls) i mi m | l-f > m = helper f ls (i+1) i (l-f)
                        | otherwise = helper f ls (i+1) mi (m)
+
+                       
+                       
+                       
+                       
+eqFun (a , b) (a1 ,b1) | a<a1 = LT
+eqFun (a , b) (a1 ,b1) | a>a1 = GT
+eqFun (a , b) (a1 ,b1) | a==a1 && b<b1 = LT
+eqFun (a , b) (a1 ,b1) | a==a1 && b>b1 = GT
+eqFun (a , b) (a1 ,b1) | a==a1 && b==b1 = EQ
+
+
